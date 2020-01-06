@@ -1,0 +1,58 @@
+;; This is an operating system configuration template for a "Docker image"
+;; setup, so it has barely any services at all.
+
+(use-modules (gnu))
+(use-service-modules base ssh)
+
+(operating-system
+  (host-name "docker")
+  (timezone "Europe/Moscow")
+  (locale "en_US.utf8")
+
+  ;; This is where user accounts are specified.  The "root" account is
+  ;; implicit, and is initially created with the empty password.
+  (users (cons (user-account
+                (name "oleg")
+                (comment "Oleg Pyhalov")
+                (group "users")
+                (supplementary-groups '("wheel" "audio" "video")))
+               %base-user-accounts))
+
+  ;; Globally-installed packages.
+  (packages %base-packages)
+
+  ;; Because the system will run in a Docker container, we may omit many
+  ;; things that would normally be required in an operating system
+  ;; configuration file.  These things include:
+  ;;
+  ;;   * bootloader
+  ;;   * file-systems
+  ;;   * services such as mingetty, udevd, slim, networking, dhcp
+  ;;
+  ;; Either these things are simply not required, or Docker provides
+  ;; similar services for us.
+
+  ;; This will be ignored.
+  (bootloader (bootloader-configuration
+               (bootloader grub-bootloader)
+               (target "does-not-matter")))
+  ;; This will be ignored, too.
+  (file-systems (list (file-system
+                        (device "does-not-matter")
+                        (mount-point "/")
+                        (type "does-not-matter"))))
+
+  ;; Guix is all you need!
+  (services (list (service guix-service-type)
+                  (service static-networking-service-type
+                           (list (static-networking (interface "lo")
+                                                    (ip "127.0.0.1")
+                                                    (requirement '())
+                                                    (provision '(loopback)))))
+                  (syslog-service)
+                  (service openssh-service-type
+                           (openssh-configuration
+                            (password-authentication? #f)
+                            (port-number 17500)
+                            (authorized-keys
+                             `(("oleg" ,(local-file "/home/oleg/.ssh/id_rsa.pub")))))))))
